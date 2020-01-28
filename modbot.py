@@ -13,8 +13,15 @@ async def on_ready():
     print(f"{bot.user.name} has connected to Discord!")
 
 @bot.command()
-@commands.has_any_role("Mod", "It Me")
+@commands.has_role("Admin")
 async def hello(ctx):
     await ctx.send("Hello World!")
+
+@hello.error
+async def hello_error(ctx, error):
+    if isinstance(error, commands.MissingRole):
+        print("Someone other than an admin attempted this command!")
+    elif isinstance(error, commands.NoPrivateMessage):
+        print("Someone tried to execute this command in a private message!")
 
 bot.run(token)
