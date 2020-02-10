@@ -11,7 +11,6 @@ bot = commands.Bot(command_prefix='!')
 def bot_cli():
     async def predicate(ctx):
         if ctx.message.channel.name != "bot-cli":
-            await ctx.message.delete()
             raise commands.DisabledCommand()
         return True
     return commands.check(predicate)
@@ -21,18 +20,20 @@ async def on_ready():
     print(f"{bot.user.name} has connected to Discord!")
 
 @bot.command()
-@bot_cli()
 @commands.has_role("Admin")
+@bot_cli()
 async def hello(ctx):
     await ctx.send("Hello World!")
 
 @hello.error
 async def hello_error(ctx, error):
     if isinstance(error, commands.MissingRole):
+        await ctx.message.delete()
         print("Someone other than an admin attempted this command!")
     elif isinstance(error, commands.NoPrivateMessage):
         print("Someone tried to execute this command in a private message!")
     elif isinstance(error, commands.DisabledCommand):
+        await ctx.message.delete()
         print("Someone tried to execute this command outside of the cli channel!")
 
 bot.run(token)
