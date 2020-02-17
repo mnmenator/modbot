@@ -27,13 +27,17 @@ async def hello(ctx):
 
 @hello.error
 async def hello_error(ctx, error):
-    if isinstance(error, commands.MissingRole):
+    if isinstance(error, commands.NoPrivateMessage):
+        return
+    elif isinstance(error, commands.MissingRole):
         await ctx.message.delete()
         print("Someone other than an admin attempted this command!")
-    elif isinstance(error, commands.NoPrivateMessage):
-        print("Someone tried to execute this command in a private message!")
     elif isinstance(error, commands.DisabledCommand):
         await ctx.message.delete()
         print("Someone tried to execute this command outside of the cli channel!")
+
+    for member in ctx.guild.members:
+        if "Admin" in [role.name for role in member.roles]:
+            print(member.display_name)
 
 bot.run(token)
