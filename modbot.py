@@ -2,6 +2,7 @@
 import os
 from dotenv import load_dotenv
 from discord.ext import commands
+from discord.utils import get
 
 load_dotenv()
 token = os.getenv("DISCORD_TOKEN")
@@ -35,13 +36,27 @@ async def on_command_error(ctx, error):
         return
     elif isinstance(error, commands.MissingRole):
         await ctx.message.delete()
-        print("Someone other than an admin attempted this command!")
+        error_name = "MissingRole"
     elif isinstance(error, commands.DisabledCommand):
         await ctx.message.delete()
-        print("Someone tried to execute this command outside of the cli channel!")
+        error_name = "DisabledCommand"
+
+    log_channel = get(ctx.guild.text_channels, name="bot-log")
+    if log_channel is None:
+        return
+    log = (
+        f"{ctx.author.name} attempted to execute \"{ctx.message.content}\" "
+        f"in the {ctx.channel.name} channel, "
+        f"triggering the {error_name} exception."
+    )
+    await log_channel.send(log)
 
 @bot.command()
 async def hello(ctx):
     await ctx.send("Hello World!")
+
+@bot.command()
+async def test(ctx):
+    await ctx.send("Howdy Doody Gamers")
 
 bot.run(token)
