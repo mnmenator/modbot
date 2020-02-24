@@ -16,6 +16,8 @@ token = os.getenv("DISCORD_TOKEN")
 
 bot = commands.Bot(command_prefix='!')
 
+blacklists = {}
+
 # Check that the command was invoked by an admin
 @bot.check
 def is_admin(ctx):
@@ -39,7 +41,6 @@ def bot_cli(ctx):
 async def on_ready():
     print(f"{bot.user.name} has connected to Discord!")
     # Load blacklists once the bot connects
-    blacklists = {}
     names = [guild.name for guild in bot.guilds]
     for name in names:
         blacklists[name] = []
@@ -96,5 +97,17 @@ async def hello(ctx):
 async def test(ctx):
     """Prints a test message"""
     await ctx.send("This is a test command.")
+
+@bot.group()
+async def blacklist(ctx):
+    """Interacts with the blacklist"""
+    if ctx.invoked_subcommand is None:
+        # Print the help text if no subcommand is called
+        await ctx.send_help(ctx.command)
+
+@blacklist.command()
+async def show(ctx):
+    """Prints all blacklisted words"""
+    await ctx.send(blacklists[ctx.guild.name])
 
 bot.run(token)
