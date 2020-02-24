@@ -67,10 +67,12 @@ async def on_command_error(ctx, error):
 
 @bot.command()
 async def hello(ctx):
+    """Prints a hello world message"""
     await ctx.send("Hello World!")
 
 @bot.command()
 async def test(ctx):
+    """Prints a test message"""
     await ctx.send("This is a test command.")
 
 bot.run(token)
