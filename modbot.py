@@ -5,9 +5,11 @@ import sys
 from dotenv import load_dotenv
 from discord.ext import commands
 from discord.utils import get
+from os.path import isfile
 
 CLI_CHANNEL = "bot-cli"
 LOG_CHANNEL = "bot-log"
+BLACKLIST_DIR = "blacklists/"
 
 load_dotenv()
 token = os.getenv("DISCORD_TOKEN")
@@ -36,8 +38,25 @@ def bot_cli(ctx):
 @bot.event
 async def on_ready():
     print(f"{bot.user.name} has connected to Discord!")
-    # Do file checking for blacklists here
-    print([guild.name for guild in bot.guilds])
+    # Load blacklists once the bot connects
+    blacklists = {}
+    names = [guild.name for guild in bot.guilds]
+    for name in names:
+        blacklists[name] = []
+        try:
+            # Try to create the file
+            file = open(BLACKLIST_DIR + name + ".txt", "x")
+        except:
+            # If creation fails, the file already exists
+            pass
+        else:
+            # If creation succeeds, close it so it can be opened for reading
+            file.close()
+        file = open(BLACKLIST_DIR + name + ".txt", "r")
+        words = file.readlines()
+        # Add contents to its blacklist
+        blacklists[name] = [word.strip() for word in words]
+        file.close()
 
 # Log permission errors
 @bot.event
@@ -54,7 +73,8 @@ async def on_command_error(ctx, error):
         error_name = "DisabledCommand"
     # Print the standard traceback for all other errors
     else:
-        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+        traceback.print_exception(type(error), error,
+                                  error.__traceback__, file=sys.stderr)
         return
 
     log_channel = get(ctx.guild.text_channels, name=LOG_CHANNEL)
