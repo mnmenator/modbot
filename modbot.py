@@ -36,6 +36,8 @@ def bot_cli(ctx):
 @bot.event
 async def on_ready():
     print(f"{bot.user.name} has connected to Discord!")
+    # Do file checking for blacklists here
+    print([guild.name for guild in bot.guilds])
 
 # Log permission errors
 @bot.event
