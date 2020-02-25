@@ -5,7 +5,7 @@ import sys
 from dotenv import load_dotenv
 from discord.ext import commands
 from discord.utils import get
-from os.path import isfile
+import os
 
 CLI_CHANNEL = "bot-cli"
 LOG_CHANNEL = "bot-log"
@@ -18,24 +18,35 @@ bot = commands.Bot(command_prefix='!')
 
 blacklists = {}
 
-# Check that the command was invoked by an admin
-@bot.check
-def is_admin(ctx):
-    # Don't execute commands in private messages
-    if ctx.guild is None:
-        raise commands.NoPrivateMessage()
-    if "Admin" not in [role.name for role in ctx.author.roles]:
-        raise commands.MissingRole("Admin")
-    return True
+def load_blacklist(name):
+    blacklists[name] = []
+    try:
+        # Try to create the file
+        file = open(BLACKLIST_DIR + name + ".txt", "x")
+    except:
+        # If creation fails, the file already exists
+        pass
+    else:
+        # If creation succeeds, close it so it can be opened for reading
+        file.close()
+    with open(BLACKLIST_DIR + name + ".txt", "r") as f:
+        words = f.readlines()
+        # Add contents to its blacklist
+        blacklists[name] = [word.strip() for word in words]
 
-# Check that the command was invoked in the proper channel
-@bot.check
-def bot_cli(ctx):
-    # Because the is_admin check runs before this, we can safely assume
-    # that we are in a guild
-    if ctx.message.channel.name != CLI_CHANNEL:
-        raise commands.DisabledCommand()
-    return True
+def delete_blacklist(name):
+    del blacklists[name]
+    try:
+        os.remove(BLACKLIST_DIR + name + ".txt")
+    except:
+        pass
+
+def rename_blacklist(before, after):
+    blacklists[after] = blacklists[before]
+    del blacklists[before]
+    old_filename = BLACKLIST_DIR + before + ".txt"
+    new_filename = BLACKLIST_DIR + after + ".txt"
+    os.rename(old_filename, new_filename)
 
 @bot.event
 async def on_ready():
@@ -43,20 +54,24 @@ async def on_ready():
     # Load blacklists once the bot connects
     names = [guild.name for guild in bot.guilds]
     for name in names:
-        blacklists[name] = []
-        try:
-            # Try to create the file
-            file = open(BLACKLIST_DIR + name + ".txt", "x")
-        except:
-            # If creation fails, the file already exists
-            pass
-        else:
-            # If creation succeeds, close it so it can be opened for reading
-            file.close()
-        with open(BLACKLIST_DIR + name + ".txt", "r") as f:
-            words = f.readlines()
-            # Add contents to its blacklist
-            blacklists[name] = [word.strip() for word in words]
+        load_blacklist(name)
+
+@bot.event
+async def on_guild_join(guild):
+    # Create a new blacklist and file when the bot joins a server
+    load_blacklist(guild.name)
+
+@bot.event
+async def on_guild_remove(guild):
+    # Remove the blacklist and file when the bot leaves a server
+    # Also if a server is deleted
+    delete_blacklist(guild.name)
+
+@bot.event
+async def on_guild_update(before, after):
+    # If a server is renamed, update the blacklist and file
+    if before.name != after.name:
+        rename_blacklist(before.name, after.name)
 
 # Log permission errors
 @bot.event
@@ -86,6 +101,25 @@ async def on_command_error(ctx, error):
         f"triggering the {error_name} exception."
     )
     await log_channel.send(log)
+
+# Check that the command was invoked by an admin
+@bot.check
+def is_admin(ctx):
+    # Don't execute commands in private messages
+    if ctx.guild is None:
+        raise commands.NoPrivateMessage()
+    if "Admin" not in [role.name for role in ctx.author.roles]:
+        raise commands.MissingRole("Admin")
+    return True
+
+# Check that the command was invoked in the proper channel
+@bot.check
+def bot_cli(ctx):
+    # Because the is_admin check runs before this, we can safely assume
+    # that we are in a guild
+    if ctx.message.channel.name != CLI_CHANNEL:
+        raise commands.DisabledCommand()
+    return True
 
 @bot.command()
 async def hello(ctx):
