@@ -118,5 +118,9 @@ async def add(ctx, *words):
             await ctx.send("\"" + word + "\" is already blacklisted.")
         else:
             blacklists[ctx.guild.name].append(word)
+            # Add new word to the blacklist file
+            file = open(BLACKLIST_DIR + ctx.guild.name + ".txt", "a")
+            file.write(word + "\n")
+            file.close()
 
 bot.run(token)
