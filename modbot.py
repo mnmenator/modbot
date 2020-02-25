@@ -110,4 +110,13 @@ async def show(ctx):
     """Prints all blacklisted words"""
     await ctx.send(blacklists[ctx.guild.name])
 
+@blacklist.command()
+async def add(ctx, *words):
+    """Adds words to the blacklist"""
+    for word in words:
+        if word in blacklists[ctx.guild.name]:
+            await ctx.send("\"" + word + "\" is already blacklisted.")
+        else:
+            blacklists[ctx.guild.name].append(word)
+
 bot.run(token)
