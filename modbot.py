@@ -120,6 +120,8 @@ async def add(ctx, *words):
             # Add new word to the blacklist file
             with open(BLACKLIST_DIR + ctx.guild.name + ".txt", "a") as f:
                 f.write(word + "\n")
+    # Print updated blacklist
+    await ctx.send(blacklists[ctx.guild.name])
 
 @blacklist.command()
 async def remove(ctx, *words):
@@ -129,5 +131,15 @@ async def remove(ctx, *words):
             await ctx.send("\"" + word + "\" is not blacklisted.")
         else:
             blacklists[ctx.guild.name].remove(word)
+            # Remove word from the blacklist file
+            with open(BLACKLIST_DIR + ctx.guild.name + ".txt", "r+") as f:
+                lines = f.readlines()
+                f.seek(0)
+                for line in lines:
+                    if line != (word + "\n"):
+                        f.write(line)
+                f.truncate()
+    # Print updated blacklist
+    await ctx.send(blacklists[ctx.guild.name])
 
 bot.run(token)
