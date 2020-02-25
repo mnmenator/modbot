@@ -53,11 +53,10 @@ async def on_ready():
         else:
             # If creation succeeds, close it so it can be opened for reading
             file.close()
-        file = open(BLACKLIST_DIR + name + ".txt", "r")
-        words = file.readlines()
-        # Add contents to its blacklist
-        blacklists[name] = [word.strip() for word in words]
-        file.close()
+        with open(BLACKLIST_DIR + name + ".txt", "r") as f:
+            words = f.readlines()
+            # Add contents to its blacklist
+            blacklists[name] = [word.strip() for word in words]
 
 # Log permission errors
 @bot.event
@@ -119,9 +118,8 @@ async def add(ctx, *words):
         else:
             blacklists[ctx.guild.name].append(word)
             # Add new word to the blacklist file
-            file = open(BLACKLIST_DIR + ctx.guild.name + ".txt", "a")
-            file.write(word + "\n")
-            file.close()
+            with open(BLACKLIST_DIR + ctx.guild.name + ".txt", "a") as f:
+                f.write(word + "\n")
 
 @blacklist.command()
 async def remove(ctx, *words):
