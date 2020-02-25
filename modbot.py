@@ -123,4 +123,13 @@ async def add(ctx, *words):
             file.write(word + "\n")
             file.close()
 
+@blacklist.command()
+async def remove(ctx, *words):
+    """Removes words from the blacklist"""
+    for word in words:
+        if word not in blacklists[ctx.guild.name]:
+            await ctx.send("\"" + word + "\" is not blacklisted.")
+        else:
+            blacklists[ctx.guild.name].remove(word)
+
 bot.run(token)
