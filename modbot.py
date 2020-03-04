@@ -5,7 +5,6 @@ import sys
 from dotenv import load_dotenv
 from discord.ext import commands
 from discord.utils import get
-import os
 
 CLI_CHANNEL = "bot-cli"
 LOG_CHANNEL = "bot-log"
@@ -82,6 +81,9 @@ async def on_command_error(ctx, error):
     # If a command was invoked by someone other than an admin
     elif isinstance(error, commands.MissingRole):
         error_name = "MissingRole"
+    # If a command was invoked without the proper permissions
+    elif isinstance(error, commands.MissingPermissions):
+        error_name = "MissingPermissions"
     # If a command was invoked in the wrong channel
     elif isinstance(error, commands.DisabledCommand):
         await ctx.message.delete()
@@ -130,6 +132,14 @@ async def hello(ctx):
 async def test(ctx):
     """Prints a test message"""
     await ctx.send("This is a test command.")
+
+@bot.command(name="kick")
+@commands.has_permissions(kick_members=True)
+async def kick_user(ctx, *names):
+    """Kicks a user from the server"""
+    await ctx.send("get kicked nerd")
+    #for name in names:
+        #member = get(ctx.guild.members, name=name)
 
 @bot.group()
 async def blacklist(ctx):
