@@ -152,6 +152,44 @@ async def kick_user(ctx, *names):
             else:
                 await ctx.send("Successfully kicked \"" + name + "\"")
 
+@bot.command(name="ban")
+@commands.has_permissions(ban_members=True)
+async def ban_user(ctx, *names):
+    """Bans a user from the server"""
+    if len(names) == 0:
+        await ctx.send_help(ctx.command)
+    for name in names:
+        member = get(ctx.guild.members, name=name)
+        if member is None:
+            await ctx.send("There is no member named \"" + name + "\"")
+        else:
+            try:
+                await member.ban()
+            except HTTPException:
+                await ctx.send("Failed to ban \"" + name + "\"")
+            else:
+                await ctx.send("Successfully banned \"" + name + "\"")
+
+@bot.command(name="unban")
+@commands.has_permissions(ban_members=True)
+async def unban_user(ctx, *names):
+    """Unbans a user from the server"""
+    if len(names) == 0:
+        await ctx.send_help(ctx.command)
+    bans = await ctx.guild.bans()
+    banned_users = [ban.user for ban in bans]
+    for name in names:
+        member = get(banned_users, name=name)
+        if member is None:
+            await ctx.send("There is no banned member named \"" + name + "\"")
+        else:
+            try:
+                await ctx.guild.unban(member)
+            except HTTPException:
+                await ctx.send("Failed to unban \"" + name + "\"")
+            else:
+                await ctx.send("Successfully unbanned \"" + name + "\"")
+
 
 @bot.group()
 async def blacklist(ctx):
