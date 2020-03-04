@@ -3,6 +3,7 @@ import os
 import traceback
 import sys
 from dotenv import load_dotenv
+from discord import HTTPException
 from discord.ext import commands
 from discord.utils import get
 
@@ -137,9 +138,20 @@ async def test(ctx):
 @commands.has_permissions(kick_members=True)
 async def kick_user(ctx, *names):
     """Kicks a user from the server"""
-    await ctx.send("get kicked nerd")
-    #for name in names:
-        #member = get(ctx.guild.members, name=name)
+    if len(names) == 0:
+        await ctx.send_help(ctx.command)
+    for name in names:
+        member = get(ctx.guild.members, name=name)
+        if member is None:
+            await ctx.send("There is no member named \"" + name + "\"")
+        else:
+            try:
+                await member.kick()
+            except HTTPException:
+                await ctx.send("Failed to kick \"" + name + "\"")
+            else:
+                await ctx.send("Successfully kicked \"" + name + "\"")
+
 
 @bot.group()
 async def blacklist(ctx):
