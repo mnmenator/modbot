@@ -57,6 +57,19 @@ async def on_ready():
         load_blacklist(name)
 
 @bot.event
+async def on_message(message):
+    # Ignore messages sent by the bot
+    if(message.author.id == bot.user.id):
+        return
+    # Process commands normally
+    if(message.content[0] == '!'):
+        await bot.process_commands(message)
+    else:
+        # Only evaluate messages sent in guilds
+        if(message.guild is not None):
+            await message.channel.send("I am responding to a message.")
+
+@bot.event
 async def on_guild_join(guild):
     # Create a new blacklist and file when the bot joins a server
     load_blacklist(guild.name)
