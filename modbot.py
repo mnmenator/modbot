@@ -48,6 +48,13 @@ def rename_blacklist(before, after):
     new_filename = BLACKLIST_DIR + after + ".txt"
     os.rename(old_filename, new_filename)
 
+async def message_screen(message):
+    for word in blacklists[message.guild.name]:
+        if word in message.content:
+            await message.channel.send("Bad word detected")
+            return
+    await message.channel.send("All clear")
+
 @bot.event
 async def on_ready():
     print(f"{bot.user.name} has connected to Discord!")
@@ -59,15 +66,16 @@ async def on_ready():
 @bot.event
 async def on_message(message):
     # Ignore messages sent by the bot
-    if(message.author.id == bot.user.id):
+    if message.author.id == bot.user.id:
         return
     # Process commands normally
     if(message.content[0] == '!'):
         await bot.process_commands(message)
     else:
         # Only evaluate messages sent in guilds
-        if(message.guild is not None):
-            await message.channel.send("I am responding to a message.")
+        if message.guild is None:
+            return
+        await message_screen(message)
 
 @bot.event
 async def on_guild_join(guild):
@@ -89,8 +97,24 @@ async def on_guild_update(before, after):
 # Log permission errors
 @bot.event
 async def on_command_error(ctx, error):
+    # If the command is not recognized.
+    # This error is raised before any checks are triggered, which
+    # is why we need to do some otherwise redundant checks here
+    if isinstance(error, commands.CommandNotFound):
+        if ctx.guild is None:
+            return
+        elif "Admin" not in [role.name for role in ctx.author.roles]:
+            await message_screen(ctx.message)
+        elif ctx.channel.name != CLI_CHANNEL:
+            await ctx.message.delete()
+        else:
+            await ctx.send(
+                f"That command is not recognized. Type \"!help\" "
+                f"for a list of commands."
+            )
+        return
     # If a command was invoked in a private message
-    if isinstance(error, commands.NoPrivateMessage):
+    elif isinstance(error, commands.NoPrivateMessage):
         return
     # If a command was invoked by someone other than an admin
     elif isinstance(error, commands.MissingRole):
@@ -102,6 +126,7 @@ async def on_command_error(ctx, error):
     elif isinstance(error, commands.DisabledCommand):
         await ctx.message.delete()
         error_name = "DisabledCommand"
+
     # Print the standard traceback for all other errors
     else:
         traceback.print_exception(type(error), error,
