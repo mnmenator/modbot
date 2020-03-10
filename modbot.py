@@ -51,7 +51,7 @@ def rename_blacklist(before, after):
 async def message_screen(message):
     for word in blacklists[message.guild.name]:
         if word in message.content.lower():
-            await message.channel.send("Bad word detected")
+            await message.delete()
             return
 
 @bot.event
@@ -72,9 +72,8 @@ async def on_message(message):
         await bot.process_commands(message)
     else:
         # Only evaluate messages sent in guilds
-        if message.guild is None:
-            return
-        await message_screen(message)
+        if message.guild is not None:
+            await message_screen(message)
 
 @bot.event
 async def on_guild_join(guild):
