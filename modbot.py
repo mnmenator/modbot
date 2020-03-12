@@ -18,6 +18,7 @@ token = os.getenv("DISCORD_TOKEN")
 bot = commands.Bot(command_prefix=COMMAND_PREFIX)
 
 blacklists = {}
+strikes = {}
 
 def load_blacklist(name):
     blacklists[name] = []
@@ -62,6 +63,10 @@ async def on_ready():
     names = [guild.name for guild in bot.guilds]
     for name in names:
         load_blacklist(name)
+    # Initialize strikes
+    for guild in bot.guilds:
+        for member in guild.members:
+            strikes[member] = 0
 
 @bot.event
 async def on_message(message):
@@ -227,6 +232,18 @@ async def unban_user(ctx, *names):
             else:
                 await ctx.send("Successfully unbanned \"" + name + "\"")
 
+@bot.command()
+async def add_strike(ctx, *names):
+    """Increases a member's strike count by 1"""
+    if len(names) == 0:
+        await ctx.send_help(ctx.command)
+    for name in names:
+        member = get(ctx.guild.members, name=name)
+        if member is None:
+            await ctx.send("There is no member named \"" + name + "\"")
+        else:
+            strikes[member] += 1
+            await ctx.send(name + " now has " + (str)(strikes[member]) + " strikes")
 
 @bot.group()
 async def blacklist(ctx):
