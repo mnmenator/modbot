@@ -10,11 +10,12 @@ from discord.utils import get
 CLI_CHANNEL = "bot-cli"
 LOG_CHANNEL = "bot-log"
 BLACKLIST_DIR = "blacklists/"
+COMMAND_PREFIX = '!'
 
 load_dotenv()
 token = os.getenv("DISCORD_TOKEN")
 
-bot = commands.Bot(command_prefix='!')
+bot = commands.Bot(command_prefix=COMMAND_PREFIX)
 
 blacklists = {}
 
@@ -68,7 +69,7 @@ async def on_message(message):
     if message.author.id == bot.user.id:
         return
     # Process commands normally
-    if(message.content[0] == '!'):
+    if(message.content[0] == COMMAND_PREFIX):
         await bot.process_commands(message)
     else:
         # Only evaluate messages sent in guilds
