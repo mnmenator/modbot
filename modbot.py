@@ -2,6 +2,8 @@
 import os
 import traceback
 import sys
+import sched
+import time
 from dotenv import load_dotenv
 from discord import HTTPException
 from discord.ext import commands
@@ -19,6 +21,7 @@ bot = commands.Bot(command_prefix=COMMAND_PREFIX)
 
 blacklists = {}
 strikes = {}
+s = sched.scheduler(time.time, time.sleep)
 
 def load_blacklist(name):
     blacklists[name] = []
@@ -243,7 +246,9 @@ async def add_strike(ctx, *names):
             await ctx.send("There is no member named \"" + name + "\"")
         else:
             strikes[member] += 1
+            s.enter(5, 1, print, argument=("This is a delayed function"))
             await ctx.send(name + " now has " + (str)(strikes[member]) + " strikes")
+            s.run()
 
 @bot.group()
 async def blacklist(ctx):
