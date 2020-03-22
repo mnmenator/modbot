@@ -2,8 +2,7 @@
 import os
 import traceback
 import sys
-import sched
-import time
+from threading import Timer
 from dotenv import load_dotenv
 from discord import HTTPException
 from discord.ext import commands
@@ -21,7 +20,6 @@ bot = commands.Bot(command_prefix=COMMAND_PREFIX)
 
 blacklists = {}
 strikes = {}
-s = sched.scheduler(time.time, time.sleep)
 
 def load_blacklist(name):
     blacklists[name] = []
@@ -56,6 +54,7 @@ def rename_blacklist(before, after):
 async def message_screen(message):
     for word in blacklists[message.guild.name]:
         if word in message.content.lower():
+            strikes[message.author] += 1
             await message.delete()
             return
 
@@ -236,8 +235,8 @@ async def unban_user(ctx, *names):
                 await ctx.send("Successfully unbanned \"" + name + "\"")
 
 @bot.command()
-async def add_strike(ctx, *names):
-    """Increases a member's strike count by 1"""
+async def strike_count(ctx, *names):
+    """Prints a user's strike count"""
     if len(names) == 0:
         await ctx.send_help(ctx.command)
     for name in names:
@@ -245,10 +244,9 @@ async def add_strike(ctx, *names):
         if member is None:
             await ctx.send("There is no member named \"" + name + "\"")
         else:
-            strikes[member] += 1
-            s.enter(5, 1, print, argument=("This is a delayed function"))
-            await ctx.send(name + " now has " + (str)(strikes[member]) + " strikes")
-            s.run()
+            t = Timer(5.0, print, args=('test'))
+            t.start()
+            await ctx.send(name + " has " + (str)(strikes[member]) + " strikes")
 
 @bot.group()
 async def blacklist(ctx):
