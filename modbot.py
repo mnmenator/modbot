@@ -58,6 +58,14 @@ async def message_screen(message):
             await message.delete()
             return
 
+def init_strikes(guild):
+    for member in guild.members:
+        strikes[member] = 0
+
+def clear_strikes(guild):
+    for member in guild.members:
+        del strikes[member]
+
 @bot.event
 async def on_ready():
     print(f"{bot.user.name} has connected to Discord!")
@@ -87,18 +95,30 @@ async def on_message(message):
 async def on_guild_join(guild):
     # Create a new blacklist and file when the bot joins a server
     load_blacklist(guild.name)
+    init_strikes(guild)
 
 @bot.event
 async def on_guild_remove(guild):
     # Remove the blacklist and file when the bot leaves a server
-    # Also if a server is deleted
+    # or the server is deleted
     delete_blacklist(guild.name)
+    clear_strikes(guild)
 
 @bot.event
 async def on_guild_update(before, after):
     # If a server is renamed, update the blacklist and file
     if before.name != after.name:
         rename_blacklist(before.name, after.name)
+
+@bot.event
+async def on_member_join(member):
+    # Initialize strikes when a member joins a server
+    strikes[member] = 0;
+
+@bot.event
+async def on_member_remove(member):
+    # Clear strikes when a member leaves a server
+    del strikes[member]
 
 # Log permission errors
 @bot.event
