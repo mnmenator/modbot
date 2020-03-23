@@ -12,6 +12,7 @@ CLI_CHANNEL = "bot-cli"
 LOG_CHANNEL = "bot-log"
 BLACKLIST_DIR = "blacklists/"
 COMMAND_PREFIX = '!'
+STRIKE_EXPIRATION = 5.0
 
 load_dotenv()
 token = os.getenv("DISCORD_TOKEN")
@@ -55,8 +56,13 @@ async def message_screen(message):
     for word in blacklists[message.guild.name]:
         if word in message.content.lower():
             strikes[message.author] += 1
+            t = Timer(STRIKE_EXPIRATION, remove_strike, args=(message.author,))
+            t.start()
             await message.delete()
             return
+
+def remove_strike(member):
+    strikes[member] -= 1;
 
 def init_strikes(guild):
     for member in guild.members:
@@ -264,8 +270,6 @@ async def strike_count(ctx, *names):
         if member is None:
             await ctx.send("There is no member named \"" + name + "\"")
         else:
-            t = Timer(5.0, print, args=('test'))
-            t.start()
             await ctx.send(name + " has " + (str)(strikes[member]) + " strikes")
 
 @bot.group()
