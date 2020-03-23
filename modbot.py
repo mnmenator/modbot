@@ -14,6 +14,7 @@ BLACKLIST_DIR = "blacklists/"
 COMMAND_PREFIX = '!'
 STRIKE_EXPIRATION = 30.0 #seconds
 STRIKE_THRESHOLD = 3
+PUNISHMENT = "kick"
 
 load_dotenv()
 token = os.getenv("DISCORD_TOKEN")
@@ -53,21 +54,37 @@ def rename_blacklist(before, after):
     new_filename = BLACKLIST_DIR + after + ".txt"
     os.rename(old_filename, new_filename)
 
+async def punish(member):
+    if PUNISHMENT == "kick":
+        await member.kick()
+    elif PUNISHMENT == "ban":
+        await member.ban()
+
 async def message_screen(message):
     for word in blacklists[message.guild.name]:
         if word in message.content.lower():
             strikes[message.author] += 1
-            t = Timer(STRIKE_EXPIRATION, remove_strike, args=(message.author,))
-            t.start()
+            if strikes[message.author] == STRIKE_THRESHOLD:
+                warning = (
+                    f"Your message in {message.guild.name} has been deleted "
+                    f"for containing \"{word}\". You have been removed from "
+                    f"the server for accumulating {STRIKE_THRESHOLD} strikes."
+                )
+            else:
+                t = Timer(STRIKE_EXPIRATION, remove_strike,
+                                            args=(message.author,))
+                t.start()
+                warning = (
+                    f"Your message in {message.guild.name} has been deleted "
+                    f"for containing \"{word}\". You have "
+                    f"{strikes[message.author]} strikes, which will expire "
+                    f"after a given time. If you get {STRIKE_THRESHOLD} "
+                    f"strikes, you will be removed from the server."
+                )
             await log_strike(message, word)
-            warning = (
-                f"Your message in {message.guild.name} has been deleted for "
-                f"containing \"{word}\". You have {strikes[message.author]} "
-                f"strikes, which will expire after a given time. If you get "
-                f"{STRIKE_THRESHOLD} strikes, you will be removed from the "
-                f"server."
-            )
             await message.author.send(warning)
+            if strikes[message.author] == STRIKE_THRESHOLD:
+                await punish(message.author)
             await message.delete()
             return
 
@@ -75,15 +92,27 @@ async def log_strike(message, bad_word):
     log_channel = get(message.guild.text_channels, name=LOG_CHANNEL)
     if log_channel is None:
         return
-    log = (
-        f"{message.author.name} said \"{message.content}\" in the "
-        f"{message.channel.name} channel, which was flagged for containing "
-        f"\"{bad_word}\". They now have {strikes[message.author]} strikes."
-    )
+    if strikes[message.author] == STRIKE_THRESHOLD:
+        log = (
+            f"{message.author.name} said \"{message.content}\" in the "
+            f"{message.channel.name} channel, which was flagged for "
+            f"containing \"{bad_word}\". They have been removed from the "
+            f"server for reaching {STRIKE_THRESHOLD} strikes."
+        )
+    else:
+        log = (
+            f"{message.author.name} said \"{message.content}\" in the "
+            f"{message.channel.name} channel, which was flagged for "
+            f"containing \"{bad_word}\". They now have "
+            f"{strikes[message.author]} strikes."
+        )
     await log_channel.send(log)
 
 def remove_strike(member):
-    strikes[member] -= 1;
+    try:
+        strikes[member] -= 1
+    except:
+        pass
 
 def init_strikes(guild):
     for member in guild.members:
