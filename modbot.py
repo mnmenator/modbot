@@ -12,7 +12,8 @@ CLI_CHANNEL = "bot-cli"
 LOG_CHANNEL = "bot-log"
 BLACKLIST_DIR = "blacklists/"
 COMMAND_PREFIX = '!'
-STRIKE_EXPIRATION = 30.0
+STRIKE_EXPIRATION = 30.0 #seconds
+STRIKE_THRESHOLD = 3
 
 load_dotenv()
 token = os.getenv("DISCORD_TOKEN")
@@ -59,6 +60,14 @@ async def message_screen(message):
             t = Timer(STRIKE_EXPIRATION, remove_strike, args=(message.author,))
             t.start()
             await log_strike(message, word)
+            warning = (
+                f"Your message in {message.guild.name} has been deleted for "
+                f"containing \"{word}\". You have {strikes[message.author]} "
+                f"strikes, which will expire after a given time. If you get "
+                f"{STRIKE_THRESHOLD} strikes, you will be removed from the "
+                f"server."
+            )
+            await message.author.send(warning)
             await message.delete()
             return
 
