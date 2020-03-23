@@ -12,7 +12,7 @@ CLI_CHANNEL = "bot-cli"
 LOG_CHANNEL = "bot-log"
 BLACKLIST_DIR = "blacklists/"
 COMMAND_PREFIX = '!'
-STRIKE_EXPIRATION = 5.0
+STRIKE_EXPIRATION = 30.0
 
 load_dotenv()
 token = os.getenv("DISCORD_TOKEN")
@@ -58,8 +58,20 @@ async def message_screen(message):
             strikes[message.author] += 1
             t = Timer(STRIKE_EXPIRATION, remove_strike, args=(message.author,))
             t.start()
+            await log_strike(message, word)
             await message.delete()
             return
+
+async def log_strike(message, bad_word):
+    log_channel = get(message.guild.text_channels, name=LOG_CHANNEL)
+    if log_channel is None:
+        return
+    log = (
+        f"{message.author.name} said \"{message.content}\" in the "
+        f"{message.channel.name} channel, which was flagged for containing "
+        f"\"{bad_word}\". They now have {strikes[message.author]} strikes."
+    )
+    await log_channel.send(log)
 
 def remove_strike(member):
     strikes[member] -= 1;
