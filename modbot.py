@@ -13,7 +13,7 @@ LOG_CHANNEL = "bot-log"
 BLACKLIST_DIR = "blacklists/"
 COMMAND_PREFIX = '!'
 STRIKE_THRESHOLD = 3
-STRIKE_EXPIRATION = 60.0 #seconds
+STRIKE_EXPIRATION = 30.0 #seconds
 PUNISHMENT = "kick"
 
 load_dotenv()
