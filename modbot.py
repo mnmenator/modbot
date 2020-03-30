@@ -390,7 +390,7 @@ async def show(ctx):
 async def strike_threshold(ctx, threshold: int):
     """Changes the number of strikes needed before a punishment"""
     if threshold < 1:
-        await ctx.send("Please specify a number of strikes greater than 0")
+        await ctx.send("Please specify a number of strikes greater than 0.")
         return
     global STRIKE_THRESHOLD
     STRIKE_THRESHOLD = threshold
@@ -400,6 +400,24 @@ async def strike_threshold(ctx, threshold: int):
 async def strike_threshold_error(ctx, error):
     if isinstance(error, commands.BadArgument):
         await ctx.send("Please specify an integer.")
+    else:
+        traceback.print_exception(type(error), error,
+                                  error.__traceback__, file=sys.stderr)
+
+@configure.command()
+async def strike_expiration(ctx, expiration: float):
+    """Changes how many seconds strikes take to expire"""
+    if expiration <= 0:
+        await ctx.send("Please specify a number greater than 0.")
+        return
+    global STRIKE_EXPIRATION
+    STRIKE_EXPIRATION = expiration
+    await ctx.send("Strikes will now expire after " + str(STRIKE_EXPIRATION) + " seconds.")
+
+@strike_expiration.error
+async def strike_expiration_error(ctx, error):
+    if isinstance(error, commands.BadArgument):
+        await ctx.send("Please specify a numeric input.")
     else:
         traceback.print_exception(type(error), error,
                                   error.__traceback__, file=sys.stderr)
