@@ -12,8 +12,8 @@ CLI_CHANNEL = "bot-cli"
 LOG_CHANNEL = "bot-log"
 BLACKLIST_DIR = "blacklists/"
 COMMAND_PREFIX = '!'
-STRIKE_EXPIRATION = 30.0 #seconds
 STRIKE_THRESHOLD = 3
+STRIKE_EXPIRATION = 30.0 #seconds
 PUNISHMENT = "kick"
 
 load_dotenv()
@@ -179,6 +179,9 @@ async def on_member_remove(member):
 # Log permission errors
 @bot.event
 async def on_command_error(ctx, error):
+    #If the command has a local error handler, call that instead
+    if hasattr(ctx.command, 'on_error'):
+        return
     # If the command is not recognized.
     # This error is raised before any checks are triggered, which
     # is why we need to do some otherwise redundant checks here
@@ -366,5 +369,39 @@ async def remove(ctx, *words):
                 f.truncate()
     # Print updated blacklist
     await ctx.send(blacklists[ctx.guild.name])
+
+@bot.group()
+async def configure(ctx):
+    """Configures blacklist punishment criteria"""
+    if ctx.invoked_subcommand is None:
+        # Print the help text if no subcommand is called
+        await ctx.send_help(ctx.command)
+
+@configure.command()
+async def show(ctx):
+    """Prints configurable parameters and their current values"""
+    await ctx.send(
+        f"strike_threshold = {STRIKE_THRESHOLD}\n"
+        f"strike_expiration = {STRIKE_EXPIRATION} seconds\n"
+        f"punishment = {PUNISHMENT}"
+    )
+
+@configure.command()
+async def strike_threshold(ctx, threshold: int):
+    """Changes the number of strikes needed before a punishment"""
+    if threshold < 1:
+        await ctx.send("Please specify a number of strikes greater than 0")
+        return
+    global STRIKE_THRESHOLD
+    STRIKE_THRESHOLD = threshold
+    await ctx.send("Users will now be punished after accumulating " + str(STRIKE_THRESHOLD) + " strikes.")
+
+@strike_threshold.error
+async def strike_threshold_error(ctx, error):
+    if isinstance(error, commands.BadArgument):
+        await ctx.send("Please specify an integer.")
+    else:
+        traceback.print_exception(type(error), error,
+                                  error.__traceback__, file=sys.stderr)
 
 bot.run(token)
