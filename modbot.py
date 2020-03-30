@@ -68,7 +68,7 @@ async def message_screen(message):
                 warning = (
                     f"Your message in {message.guild.name} has been deleted "
                     f"for containing \"{word}\". You have been removed from "
-                    f"the server for accumulating {STRIKE_THRESHOLD} strikes."
+                    f"the server for accumulating {STRIKE_THRESHOLD} strikes"
                 )
             else:
                 t = Timer(STRIKE_EXPIRATION, remove_strike,
@@ -79,7 +79,7 @@ async def message_screen(message):
                     f"for containing \"{word}\". You have "
                     f"{strikes[message.author]} strikes, which will expire "
                     f"after a given time. If you get {STRIKE_THRESHOLD} "
-                    f"strikes, you will be removed from the server."
+                    f"strikes, you will be removed from the server"
                 )
             await log_strike(message, word)
             await message.author.send(warning)
@@ -97,14 +97,14 @@ async def log_strike(message, bad_word):
             f"{message.author.name} said \"{message.content}\" in the "
             f"{message.channel.name} channel, which was flagged for "
             f"containing \"{bad_word}\". They have been removed from the "
-            f"server for reaching {STRIKE_THRESHOLD} strikes."
+            f"server for reaching {STRIKE_THRESHOLD} strikes"
         )
     else:
         log = (
             f"{message.author.name} said \"{message.content}\" in the "
             f"{message.channel.name} channel, which was flagged for "
             f"containing \"{bad_word}\". They now have "
-            f"{strikes[message.author]} strikes."
+            f"{strikes[message.author]} strikes"
         )
     await log_channel.send(log)
 
@@ -195,11 +195,15 @@ async def on_command_error(ctx, error):
         else:
             await ctx.send(
                 f"That command is not recognized. Type \"!help\" "
-                f"for a list of commands."
+                f"for a list of commands"
             )
         return
     # If a command was invoked in a private message
     elif isinstance(error, commands.NoPrivateMessage):
+        return
+    # If a command is missing a required argument
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send_help(ctx.command)
         return
     # If a command was invoked by someone other than an admin
     elif isinstance(error, commands.MissingRole):
@@ -224,7 +228,7 @@ async def on_command_error(ctx, error):
     log = (
         f"{ctx.author.name} attempted to execute \"{ctx.message.content}\" "
         f"in the {ctx.channel.name} channel, "
-        f"triggering the {error_name} exception."
+        f"triggering the {error_name} exception"
     )
     await log_channel.send(log)
 
@@ -342,7 +346,7 @@ async def add(ctx, *words):
     """Adds words to the blacklist"""
     for word in words:
         if word in blacklists[ctx.guild.name]:
-            await ctx.send("\"" + word + "\" is already blacklisted.")
+            await ctx.send("\"" + word + "\" is already blacklisted")
         else:
             blacklists[ctx.guild.name].append(word)
             # Add new word to the blacklist file
@@ -356,7 +360,7 @@ async def remove(ctx, *words):
     """Removes words from the blacklist"""
     for word in words:
         if word not in blacklists[ctx.guild.name]:
-            await ctx.send("\"" + word + "\" is not blacklisted.")
+            await ctx.send("\"" + word + "\" is not blacklisted")
         else:
             blacklists[ctx.guild.name].remove(word)
             # Remove word from the blacklist file
@@ -390,16 +394,18 @@ async def show(ctx):
 async def strike_threshold(ctx, threshold: int):
     """Changes the number of strikes needed before a punishment"""
     if threshold < 1:
-        await ctx.send("Please specify a number of strikes greater than 0.")
+        await ctx.send("Please specify a number of strikes greater than 0")
         return
     global STRIKE_THRESHOLD
     STRIKE_THRESHOLD = threshold
-    await ctx.send("Users will now be punished after accumulating " + str(STRIKE_THRESHOLD) + " strikes.")
+    await ctx.send("Users will now be punished after accumulating " + str(STRIKE_THRESHOLD) + " strikes")
 
 @strike_threshold.error
 async def strike_threshold_error(ctx, error):
     if isinstance(error, commands.BadArgument):
-        await ctx.send("Please specify an integer.")
+        await ctx.send("Please specify an integer")
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send_help(ctx.command)
     else:
         traceback.print_exception(type(error), error,
                                   error.__traceback__, file=sys.stderr)
@@ -408,18 +414,30 @@ async def strike_threshold_error(ctx, error):
 async def strike_expiration(ctx, expiration: float):
     """Changes how many seconds strikes take to expire"""
     if expiration <= 0:
-        await ctx.send("Please specify a number greater than 0.")
+        await ctx.send("Please specify a number greater than 0")
         return
     global STRIKE_EXPIRATION
     STRIKE_EXPIRATION = expiration
-    await ctx.send("Strikes will now expire after " + str(STRIKE_EXPIRATION) + " seconds.")
+    await ctx.send("Strikes will now expire after " + str(STRIKE_EXPIRATION) + " seconds")
 
 @strike_expiration.error
 async def strike_expiration_error(ctx, error):
     if isinstance(error, commands.BadArgument):
-        await ctx.send("Please specify a numeric input.")
+        await ctx.send("Please specify a numeric input")
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send_help(ctx.command)
     else:
         traceback.print_exception(type(error), error,
                                   error.__traceback__, file=sys.stderr)
+
+@configure.command()
+async def punishment(ctx, punishment):
+    """Changes if users are kicked or banned after reaching the strike threshold"""
+    if punishment not in ["ban", "kick"]:
+        await ctx.send("Please specify \"ban\" or \"kick\"")
+    else:
+        global PUNISHMENT
+        PUNISHMENT = punishment
+        await ctx.send("Changed punishment to " + PUNISHMENT)
 
 bot.run(token)
