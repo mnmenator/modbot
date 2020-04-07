@@ -11,10 +11,12 @@ from discord.utils import get
 CLI_CHANNEL = "bot-cli"
 LOG_CHANNEL = "bot-log"
 BLACKLIST_DIR = "blacklists/"
+SETTINGS_DIR = "settings/"
 COMMAND_PREFIX = '!'
-STRIKE_THRESHOLD = 3
-STRIKE_EXPIRATION = 30.0 #seconds
-PUNISHMENT = "kick"
+STRIKE_THRESHOLD_DEFAULT = 3
+STRIKE_EXPIRATION_DEFAULT = 60.0 #seconds
+PUNISHMENT_DEFAULT = "kick"
+DEFAULT_SETTINGS = "strike_threshold 3\nstrike_expiration 60.0\npunishment_default kick\n"
 
 load_dotenv()
 token = os.getenv("DISCORD_TOKEN")
@@ -23,6 +25,42 @@ bot = commands.Bot(command_prefix=COMMAND_PREFIX)
 
 blacklists = {}
 strikes = {}
+settings = {}
+
+def load_settings(name):
+    settings[name] = {}
+    try:
+        # Try to create the file
+        file = open(SETTINGS_DIR + name + ".txt", "x")
+    except:
+        # If creation fails, the file already exists
+        pass
+    else:
+        # If creation succeeds, fill it with the default settings
+        file.close()
+        file = open(SETTINGS_DIR + name + ".txt", "w")
+        file.write(DEFAULT_SETTINGS)
+        file.close()
+    with open(SETTINGS_DIR + name + ".txt", "r") as f:
+        line = f.readline()
+        while line:
+            info = line.split()
+            settings[name][info[0]] = info[1]
+            line = f.readline()
+
+def delete_settings(name):
+    del settings[name]
+    try:
+        os.remove(SETTINGS_DIR + name + ".txt")
+    except:
+        pass
+
+def rename_settings(before, after):
+    settings[after] = settings[before]
+    del settings[before]
+    old_filename = SETTINGS_DIR + before + ".txt"
+    new_filename = SETTINGS_DIR + after + ".txt"
+    os.rename(old_filename, new_filename)
 
 def load_blacklist(name):
     blacklists[name] = []
@@ -55,9 +93,9 @@ def rename_blacklist(before, after):
     os.rename(old_filename, new_filename)
 
 async def punish(member):
-    if PUNISHMENT == "kick":
+    if settings[member.guild.name]["punishment"] == "kick":
         await member.kick()
-    elif PUNISHMENT == "ban":
+    elif settings[member.guild.name]["punishment"] == "ban":
         await member.ban()
 
 async def message_screen(message):
@@ -129,6 +167,7 @@ async def on_ready():
     names = [guild.name for guild in bot.guilds]
     for name in names:
         load_blacklist(name)
+        load_settings(name)
     # Initialize strikes
     for guild in bot.guilds:
         for member in guild.members:
