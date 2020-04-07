@@ -16,7 +16,7 @@ COMMAND_PREFIX = '!'
 STRIKE_THRESHOLD_DEFAULT = 3
 STRIKE_EXPIRATION_DEFAULT = 60.0 #seconds
 PUNISHMENT_DEFAULT = "kick"
-DEFAULT_SETTINGS = "strike_threshold 3\nstrike_expiration 60.0\npunishment_default kick\n"
+DEFAULT_SETTINGS = "strike_threshold 3\nstrike_expiration 60.0\npunishment kick\n"
 
 load_dotenv()
 token = os.getenv("DISCORD_TOKEN")
@@ -102,26 +102,27 @@ async def message_screen(message):
     for word in blacklists[message.guild.name]:
         if word in message.content.lower():
             strikes[message.author] += 1
-            if strikes[message.author] == STRIKE_THRESHOLD:
+            if strikes[message.author] == settings[message.guild.name]["strike_threshold"]:
                 warning = (
                     f"Your message in {message.guild.name} has been deleted "
                     f"for containing \"{word}\". You have been removed from "
-                    f"the server for accumulating {STRIKE_THRESHOLD} strikes"
+                    f"the server for accumulating "
+                    f"{settings[message.guild.name]['strike_threshold']} strikes"
                 )
             else:
-                t = Timer(STRIKE_EXPIRATION, remove_strike,
-                                            args=(message.author,))
+                t = Timer(settings[message.guild.name]["strike_expiration"],
+                          remove_strike, args=(message.author,))
                 t.start()
                 warning = (
                     f"Your message in {message.guild.name} has been deleted "
                     f"for containing \"{word}\". You have "
                     f"{strikes[message.author]} strikes, which will expire "
-                    f"after a given time. If you get {STRIKE_THRESHOLD} "
+                    f"after a given time. If you get {settings[message.guild.name]['strike_threshold']} "
                     f"strikes, you will be removed from the server"
                 )
             await log_strike(message, word)
             await message.author.send(warning)
-            if strikes[message.author] == STRIKE_THRESHOLD:
+            if strikes[message.author] == settings[message.guild.name]["strike_threshold"]:
                 await punish(message.author)
             await message.delete()
             return
@@ -130,12 +131,12 @@ async def log_strike(message, bad_word):
     log_channel = get(message.guild.text_channels, name=LOG_CHANNEL)
     if log_channel is None:
         return
-    if strikes[message.author] == STRIKE_THRESHOLD:
+    if strikes[message.author] == settings[message.guild.name]["strike_threshold"]:
         log = (
             f"{message.author.name} said \"{message.content}\" in the "
             f"{message.channel.name} channel, which was flagged for "
             f"containing \"{bad_word}\". They have been removed from the "
-            f"server for reaching {STRIKE_THRESHOLD} strikes"
+            f"server for reaching {settings[message.guild.name]['strike_threshold']} strikes"
         )
     else:
         log = (
@@ -190,6 +191,7 @@ async def on_message(message):
 async def on_guild_join(guild):
     # Create a new blacklist and file when the bot joins a server
     load_blacklist(guild.name)
+    load_settings(guild.name)
     init_strikes(guild)
 
 @bot.event
@@ -197,6 +199,7 @@ async def on_guild_remove(guild):
     # Remove the blacklist and file when the bot leaves a server
     # or the server is deleted
     delete_blacklist(guild.name)
+    delete_settings(guild.name)
     clear_strikes(guild)
 
 @bot.event
@@ -204,6 +207,7 @@ async def on_guild_update(before, after):
     # If a server is renamed, update the blacklist and file
     if before.name != after.name:
         rename_blacklist(before.name, after.name)
+        rename_settings(before.name, after.name)
 
 @bot.event
 async def on_member_join(member):
@@ -424,9 +428,9 @@ async def configure(ctx):
 async def show(ctx):
     """Prints configurable parameters and their current values"""
     await ctx.send(
-        f"strike_threshold = {STRIKE_THRESHOLD}\n"
-        f"strike_expiration = {STRIKE_EXPIRATION} seconds\n"
-        f"punishment = {PUNISHMENT}"
+        f"strike_threshold = {settings[ctx.guild.name]['strike_threshold']}\n"
+        f"strike_expiration = {settings[ctx.guild.name]['strike_expiration']} seconds\n"
+        f"punishment = {settings[ctx.guild.name]['punishment']}"
     )
 
 @configure.command()
@@ -435,9 +439,17 @@ async def strike_threshold(ctx, threshold: int):
     if threshold < 1:
         await ctx.send("Please specify a number of strikes greater than 0")
         return
-    global STRIKE_THRESHOLD
-    STRIKE_THRESHOLD = threshold
-    await ctx.send("Users will now be punished after accumulating " + str(STRIKE_THRESHOLD) + " strikes")
+    settings[ctx.guild.name]["strike_threshold"] = threshold
+    new_settings = (
+        f"strike_threshold {threshold}\n"
+        f"strike_expiration {settings[ctx.guild.name]['strike_expiration']}\n"
+        f"punishment {settings[ctx.guild.name]['punishment']}\n"
+    )
+    with open(SETTINGS_DIR + ctx.guild.name + ".txt", "w") as f:
+        f.write(new_settings)
+
+    await ctx.send("Users will now be punished after accumulating " +
+                    str(threshold) + " strikes")
 
 @strike_threshold.error
 async def strike_threshold_error(ctx, error):
@@ -455,9 +467,16 @@ async def strike_expiration(ctx, expiration: float):
     if expiration <= 0:
         await ctx.send("Please specify a number greater than 0")
         return
-    global STRIKE_EXPIRATION
-    STRIKE_EXPIRATION = expiration
-    await ctx.send("Strikes will now expire after " + str(STRIKE_EXPIRATION) + " seconds")
+    settings[ctx.guild.name]["strike_expiration"] = expiration
+    new_settings = (
+        f"strike_threshold {settings[ctx.guild.name]['strike_threshold']}\n"
+        f"strike_expiration {expiration}\n"
+        f"punishment {settings[ctx.guild.name]['punishment']}\n"
+    )
+    with open(SETTINGS_DIR + ctx.guild.name + ".txt", "w") as f:
+        f.write(new_settings)
+    await ctx.send("Strikes will now expire after " + str(expiration) +
+                   " seconds")
 
 @strike_expiration.error
 async def strike_expiration_error(ctx, error):
@@ -475,8 +494,14 @@ async def punishment(ctx, punishment):
     if punishment not in ["ban", "kick"]:
         await ctx.send("Please specify \"ban\" or \"kick\"")
     else:
-        global PUNISHMENT
-        PUNISHMENT = punishment
-        await ctx.send("Changed punishment to " + PUNISHMENT)
+        settings[ctx.guild.name]["punishment"] = punishment
+        new_settings = (
+        f"strike_threshold {settings[ctx.guild.name]['strike_threshold']}\n"
+        f"strike_expiration {settings[ctx.guild.name]['strike_expiration']}\n"
+        f"punishment {punishment}\n"
+    )
+    with open(SETTINGS_DIR + ctx.guild.name + ".txt", "w") as f:
+        f.write(new_settings)
+        await ctx.send("Changed punishment to " + punishment)
 
 bot.run(token)
