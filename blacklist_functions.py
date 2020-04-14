@@ -32,3 +32,4 @@ def rename_blacklist(blacklists, before, after):
     old_filename = BLACKLIST_DIR + before + ".txt"
     new_filename = BLACKLIST_DIR + after + ".txt"
     os.rename(old_filename, new_filename)
+    

@@ -1,71 +1,27 @@
 # modbot.py
-import os
 import traceback
 import sys
 import blacklist_functions as b
+import settings_functions as s
 from threading import Timer
 from dotenv import load_dotenv
+from os import getenv
 from discord import HTTPException
 from discord.ext import commands
 from discord.utils import get
 
 CLI_CHANNEL = "bot-cli"
 LOG_CHANNEL = "bot-log"
-SETTINGS_DIR = "settings/"
 COMMAND_PREFIX = '!'
-STRIKE_THRESHOLD_DEFAULT = 3
-STRIKE_EXPIRATION_DEFAULT = 60.0 #seconds
-PUNISHMENT_DEFAULT = "kick"
-DEFAULT_SETTINGS = "strike_threshold 3 i\nstrike_expiration 60.0 f\npunishment kick s\n"
 
 load_dotenv()
-token = os.getenv("DISCORD_TOKEN")
+token = getenv("DISCORD_TOKEN")
 
 bot = commands.Bot(command_prefix=COMMAND_PREFIX)
 
 blacklists = {}
 strikes = {}
 settings = {}
-
-def load_settings(name):
-    settings[name] = {}
-    try:
-        # Try to create the file
-        file = open(SETTINGS_DIR + name + ".txt", "x")
-    except:
-        # If creation fails, the file already exists
-        pass
-    else:
-        # If creation succeeds, fill it with the default settings
-        file.close()
-        file = open(SETTINGS_DIR + name + ".txt", "w")
-        file.write(DEFAULT_SETTINGS)
-        file.close()
-    with open(SETTINGS_DIR + name + ".txt", "r") as f:
-        line = f.readline()
-        while line:
-            info = line.split()
-            if info[2] == "i":
-                settings[name][info[0]] = int(info[1])
-            elif info[2] == "f":
-                settings[name][info[0]] = float(info[1])
-            else:
-                settings[name][info[0]] = info[1]
-            line = f.readline()
-
-def delete_settings(name):
-    del settings[name]
-    try:
-        os.remove(SETTINGS_DIR + name + ".txt")
-    except:
-        pass
-
-def rename_settings(before, after):
-    settings[after] = settings[before]
-    del settings[before]
-    old_filename = SETTINGS_DIR + before + ".txt"
-    new_filename = SETTINGS_DIR + after + ".txt"
-    os.rename(old_filename, new_filename)
 
 async def punish(member):
     if settings[member.guild.name]["punishment"] == "kick":
@@ -143,7 +99,7 @@ async def on_ready():
     names = [guild.name for guild in bot.guilds]
     for name in names:
         b.load_blacklist(blacklists, name)
-        load_settings(name)
+        s.load_settings(settings, name)
     # Initialize strikes
     for guild in bot.guilds:
         for member in guild.members:
@@ -166,7 +122,7 @@ async def on_message(message):
 async def on_guild_join(guild):
     # Create a new blacklist and file when the bot joins a server
     b.load_blacklist(blacklists, guild.name)
-    load_settings(guild.name)
+    s.load_settings(settings, guild.name)
     init_strikes(guild)
 
 @bot.event
@@ -174,7 +130,7 @@ async def on_guild_remove(guild):
     # Remove the blacklist and file when the bot leaves a server
     # or the server is deleted
     b.delete_blacklist(blacklists, guild.name)
-    delete_settings(guild.name)
+    s.delete_settings(settings, guild.name)
     clear_strikes(guild)
 
 @bot.event
@@ -182,7 +138,7 @@ async def on_guild_update(before, after):
     # If a server is renamed, update the blacklist and file
     if before.name != after.name:
         b.rename_blacklist(blacklists, before.name, after.name)
-        rename_settings(before.name, after.name)
+        s.rename_settings(settings, before.name, after.name)
 
 @bot.event
 async def on_member_join(member):
@@ -420,7 +376,7 @@ async def strike_threshold(ctx, threshold: int):
         f"strike_expiration {settings[ctx.guild.name]['strike_expiration']} f\n"
         f"punishment {settings[ctx.guild.name]['punishment']} s\n"
     )
-    with open(SETTINGS_DIR + ctx.guild.name + ".txt", "w") as f:
+    with open(s.SETTINGS_DIR + ctx.guild.name + ".txt", "w") as f:
         f.write(new_settings)
 
     await ctx.send("Users will now be punished after accumulating " +
@@ -448,7 +404,7 @@ async def strike_expiration(ctx, expiration: float):
         f"strike_expiration {expiration} f\n"
         f"punishment {settings[ctx.guild.name]['punishment']} s\n"
     )
-    with open(SETTINGS_DIR + ctx.guild.name + ".txt", "w") as f:
+    with open(s.SETTINGS_DIR + ctx.guild.name + ".txt", "w") as f:
         f.write(new_settings)
     await ctx.send("Strikes will now expire after " + str(expiration) +
                    " seconds")
@@ -475,7 +431,7 @@ async def punishment(ctx, punishment):
         f"strike_expiration {settings[ctx.guild.name]['strike_expiration']} f\n"
         f"punishment {punishment} s\n"
     )
-    with open(SETTINGS_DIR + ctx.guild.name + ".txt", "w") as f:
+    with open(s.SETTINGS_DIR + ctx.guild.name + ".txt", "w") as f:
         f.write(new_settings)
         await ctx.send("Changed punishment to " + punishment)
 
