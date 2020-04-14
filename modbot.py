@@ -2,6 +2,7 @@
 import os
 import traceback
 import sys
+import blacklist_functions as b
 from threading import Timer
 from dotenv import load_dotenv
 from discord import HTTPException
@@ -10,13 +11,12 @@ from discord.utils import get
 
 CLI_CHANNEL = "bot-cli"
 LOG_CHANNEL = "bot-log"
-BLACKLIST_DIR = "blacklists/"
 SETTINGS_DIR = "settings/"
 COMMAND_PREFIX = '!'
 STRIKE_THRESHOLD_DEFAULT = 3
 STRIKE_EXPIRATION_DEFAULT = 60.0 #seconds
 PUNISHMENT_DEFAULT = "kick"
-DEFAULT_SETTINGS = "strike_threshold 3\nstrike_expiration 60.0\npunishment kick\n"
+DEFAULT_SETTINGS = "strike_threshold 3 i\nstrike_expiration 60.0 f\npunishment kick s\n"
 
 load_dotenv()
 token = os.getenv("DISCORD_TOKEN")
@@ -45,7 +45,12 @@ def load_settings(name):
         line = f.readline()
         while line:
             info = line.split()
-            settings[name][info[0]] = info[1]
+            if info[2] == "i":
+                settings[name][info[0]] = int(info[1])
+            elif info[2] == "f":
+                settings[name][info[0]] = float(info[1])
+            else:
+                settings[name][info[0]] = info[1]
             line = f.readline()
 
 def delete_settings(name):
@@ -62,36 +67,6 @@ def rename_settings(before, after):
     new_filename = SETTINGS_DIR + after + ".txt"
     os.rename(old_filename, new_filename)
 
-def load_blacklist(name):
-    blacklists[name] = []
-    try:
-        # Try to create the file
-        file = open(BLACKLIST_DIR + name + ".txt", "x")
-    except:
-        # If creation fails, the file already exists
-        pass
-    else:
-        # If creation succeeds, close it so it can be opened for reading
-        file.close()
-    with open(BLACKLIST_DIR + name + ".txt", "r") as f:
-        words = f.readlines()
-        # Add contents to its blacklist
-        blacklists[name] = [word.strip() for word in words]
-
-def delete_blacklist(name):
-    del blacklists[name]
-    try:
-        os.remove(BLACKLIST_DIR + name + ".txt")
-    except:
-        pass
-
-def rename_blacklist(before, after):
-    blacklists[after] = blacklists[before]
-    del blacklists[before]
-    old_filename = BLACKLIST_DIR + before + ".txt"
-    new_filename = BLACKLIST_DIR + after + ".txt"
-    os.rename(old_filename, new_filename)
-
 async def punish(member):
     if settings[member.guild.name]["punishment"] == "kick":
         await member.kick()
@@ -102,7 +77,7 @@ async def message_screen(message):
     for word in blacklists[message.guild.name]:
         if word in message.content.lower():
             strikes[message.author] += 1
-            if strikes[message.author] == settings[message.guild.name]["strike_threshold"]:
+            if strikes[message.author] >= settings[message.guild.name]["strike_threshold"]:
                 warning = (
                     f"Your message in {message.guild.name} has been deleted "
                     f"for containing \"{word}\". You have been removed from "
@@ -122,7 +97,7 @@ async def message_screen(message):
                 )
             await log_strike(message, word)
             await message.author.send(warning)
-            if strikes[message.author] == settings[message.guild.name]["strike_threshold"]:
+            if strikes[message.author] >= settings[message.guild.name]["strike_threshold"]:
                 await punish(message.author)
             await message.delete()
             return
@@ -131,7 +106,7 @@ async def log_strike(message, bad_word):
     log_channel = get(message.guild.text_channels, name=LOG_CHANNEL)
     if log_channel is None:
         return
-    if strikes[message.author] == settings[message.guild.name]["strike_threshold"]:
+    if strikes[message.author] >= settings[message.guild.name]["strike_threshold"]:
         log = (
             f"{message.author.name} said \"{message.content}\" in the "
             f"{message.channel.name} channel, which was flagged for "
@@ -167,7 +142,7 @@ async def on_ready():
     # Load blacklists once the bot connects
     names = [guild.name for guild in bot.guilds]
     for name in names:
-        load_blacklist(name)
+        b.load_blacklist(blacklists, name)
         load_settings(name)
     # Initialize strikes
     for guild in bot.guilds:
@@ -190,7 +165,7 @@ async def on_message(message):
 @bot.event
 async def on_guild_join(guild):
     # Create a new blacklist and file when the bot joins a server
-    load_blacklist(guild.name)
+    b.load_blacklist(blacklists, guild.name)
     load_settings(guild.name)
     init_strikes(guild)
 
@@ -198,7 +173,7 @@ async def on_guild_join(guild):
 async def on_guild_remove(guild):
     # Remove the blacklist and file when the bot leaves a server
     # or the server is deleted
-    delete_blacklist(guild.name)
+    b.delete_blacklist(blacklists, guild.name)
     delete_settings(guild.name)
     clear_strikes(guild)
 
@@ -206,7 +181,7 @@ async def on_guild_remove(guild):
 async def on_guild_update(before, after):
     # If a server is renamed, update the blacklist and file
     if before.name != after.name:
-        rename_blacklist(before.name, after.name)
+        b.rename_blacklist(blacklists, before.name, after.name)
         rename_settings(before.name, after.name)
 
 @bot.event
@@ -393,7 +368,7 @@ async def add(ctx, *words):
         else:
             blacklists[ctx.guild.name].append(word)
             # Add new word to the blacklist file
-            with open(BLACKLIST_DIR + ctx.guild.name + ".txt", "a") as f:
+            with open(b.BLACKLIST_DIR + ctx.guild.name + ".txt", "a") as f:
                 f.write(word + "\n")
     # Print updated blacklist
     await ctx.send(blacklists[ctx.guild.name])
@@ -407,7 +382,7 @@ async def remove(ctx, *words):
         else:
             blacklists[ctx.guild.name].remove(word)
             # Remove word from the blacklist file
-            with open(BLACKLIST_DIR + ctx.guild.name + ".txt", "r+") as f:
+            with open(b.BLACKLIST_DIR + ctx.guild.name + ".txt", "r+") as f:
                 lines = f.readlines()
                 f.seek(0)
                 for line in lines:
@@ -441,9 +416,9 @@ async def strike_threshold(ctx, threshold: int):
         return
     settings[ctx.guild.name]["strike_threshold"] = threshold
     new_settings = (
-        f"strike_threshold {threshold}\n"
-        f"strike_expiration {settings[ctx.guild.name]['strike_expiration']}\n"
-        f"punishment {settings[ctx.guild.name]['punishment']}\n"
+        f"strike_threshold {threshold} i\n"
+        f"strike_expiration {settings[ctx.guild.name]['strike_expiration']} f\n"
+        f"punishment {settings[ctx.guild.name]['punishment']} s\n"
     )
     with open(SETTINGS_DIR + ctx.guild.name + ".txt", "w") as f:
         f.write(new_settings)
@@ -469,9 +444,9 @@ async def strike_expiration(ctx, expiration: float):
         return
     settings[ctx.guild.name]["strike_expiration"] = expiration
     new_settings = (
-        f"strike_threshold {settings[ctx.guild.name]['strike_threshold']}\n"
-        f"strike_expiration {expiration}\n"
-        f"punishment {settings[ctx.guild.name]['punishment']}\n"
+        f"strike_threshold {settings[ctx.guild.name]['strike_threshold']} i\n"
+        f"strike_expiration {expiration} f\n"
+        f"punishment {settings[ctx.guild.name]['punishment']} s\n"
     )
     with open(SETTINGS_DIR + ctx.guild.name + ".txt", "w") as f:
         f.write(new_settings)
@@ -496,9 +471,9 @@ async def punishment(ctx, punishment):
     else:
         settings[ctx.guild.name]["punishment"] = punishment
         new_settings = (
-        f"strike_threshold {settings[ctx.guild.name]['strike_threshold']}\n"
-        f"strike_expiration {settings[ctx.guild.name]['strike_expiration']}\n"
-        f"punishment {punishment}\n"
+        f"strike_threshold {settings[ctx.guild.name]['strike_threshold']} i\n"
+        f"strike_expiration {settings[ctx.guild.name]['strike_expiration']} f\n"
+        f"punishment {punishment} s\n"
     )
     with open(SETTINGS_DIR + ctx.guild.name + ".txt", "w") as f:
         f.write(new_settings)
