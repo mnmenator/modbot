@@ -2,7 +2,7 @@
 import traceback
 import sys
 import blacklist_functions as b
-import settings_functions as s
+import strike_functions as s
 from threading import Timer
 from dotenv import load_dotenv
 from os import getenv
@@ -42,7 +42,7 @@ async def message_screen(message):
                 )
             else:
                 t = Timer(settings[message.guild.name]["strike_expiration"],
-                          remove_strike, args=(message.author,))
+                          s.remove_strike, args=(strikes, message.author))
                 t.start()
                 warning = (
                     f"Your message in {message.guild.name} has been deleted "
@@ -78,20 +78,6 @@ async def log_strike(message, bad_word):
         )
     await log_channel.send(log)
 
-def remove_strike(member):
-    try:
-        strikes[member] -= 1
-    except:
-        pass
-
-def init_strikes(guild):
-    for member in guild.members:
-        strikes[member] = 0
-
-def clear_strikes(guild):
-    for member in guild.members:
-        del strikes[member]
-
 @bot.event
 async def on_ready():
     print(f"{bot.user.name} has connected to Discord!")
@@ -123,7 +109,7 @@ async def on_guild_join(guild):
     # Create a new blacklist and file when the bot joins a server
     b.load_blacklist(blacklists, guild.name)
     s.load_settings(settings, guild.name)
-    init_strikes(guild)
+    s.init_strikes(strikes, guild)
 
 @bot.event
 async def on_guild_remove(guild):
@@ -131,7 +117,7 @@ async def on_guild_remove(guild):
     # or the server is deleted
     b.delete_blacklist(blacklists, guild.name)
     s.delete_settings(settings, guild.name)
-    clear_strikes(guild)
+    s.clear_strikes(strikes, guild)
 
 @bot.event
 async def on_guild_update(before, after):

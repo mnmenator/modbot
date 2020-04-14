@@ -1,4 +1,4 @@
-# settings_functions.py
+# strike_functions.py
 
 SETTINGS_DIR = "settings/"
 DEFAULT_SETTINGS = "strike_threshold 3 i\nstrike_expiration 60.0 f\npunishment kick s\n"
@@ -42,3 +42,17 @@ def rename_settings(settings, before, after):
     old_filename = SETTINGS_DIR + before + ".txt"
     new_filename = SETTINGS_DIR + after + ".txt"
     os.rename(old_filename, new_filename)
+
+def remove_strike(strikes, member):
+    try:
+        strikes[member] -= 1
+    except:
+        pass
+
+def init_strikes(strikes, guild):
+    for member in guild.members:
+        strikes[member] = 0
+
+def clear_strikes(strikes, guild):
+    for member in guild.members:
+        del strikes[member]
