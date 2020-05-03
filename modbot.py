@@ -30,10 +30,12 @@ async def punish(member):
         await member.ban()
 
 async def message_screen(message):
+    threshold = 0
     for word in blacklists[message.guild.name]:
         if word in message.content.lower():
             strikes[message.author] += 1
             if strikes[message.author] >= settings[message.guild.name]["strike_threshold"]:
+                threshold = 1
                 warning = (
                     f"Your message in {message.guild.name} has been deleted "
                     f"for containing \"{word}\". You have been removed from "
@@ -51,18 +53,18 @@ async def message_screen(message):
                     f"after a given time. If you get {settings[message.guild.name]['strike_threshold']} "
                     f"strikes, you will be removed from the server"
                 )
-            await log_strike(message, word)
+            await log_strike(message, word, threshold)
             await message.author.send(warning)
-            if strikes[message.author] >= settings[message.guild.name]["strike_threshold"]:
+            if threshold:
                 await punish(message.author)
             await message.delete()
             return
 
-async def log_strike(message, bad_word):
+async def log_strike(message, bad_word, threshold):
     log_channel = get(message.guild.text_channels, name=LOG_CHANNEL)
     if log_channel is None:
         return
-    if strikes[message.author] >= settings[message.guild.name]["strike_threshold"]:
+    if threshold:
         log = (
             f"{message.author.name} said \"{message.content}\" in the "
             f"{message.channel.name} channel, which was flagged for "

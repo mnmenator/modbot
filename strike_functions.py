@@ -44,10 +44,8 @@ def rename_settings(settings, before, after):
     os.rename(old_filename, new_filename)
 
 def remove_strike(strikes, member):
-    try:
+    if member in strikes and strikes[member] > 0:
         strikes[member] -= 1
-    except:
-        pass
 
 def init_strikes(strikes, guild):
     for member in guild.members:
