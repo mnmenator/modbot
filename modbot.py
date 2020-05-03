@@ -312,8 +312,7 @@ async def add(ctx, *words):
             # Add new word to the blacklist file
             with open(b.BLACKLIST_DIR + ctx.guild.name + ".txt", "a") as f:
                 f.write(word + "\n")
-    # Print updated blacklist
-    await ctx.send(blacklists[ctx.guild.name])
+            await ctx.send("Successfuly added \"" + word + "\" to the blacklist")
 
 @blacklist.command()
 async def remove(ctx, *words):
@@ -331,8 +330,7 @@ async def remove(ctx, *words):
                     if line != (word + "\n"):
                         f.write(line)
                 f.truncate()
-    # Print updated blacklist
-    await ctx.send(blacklists[ctx.guild.name])
+            await ctx.send("Successfully removed \"" + word + "\" from the blacklist")
 
 @bot.group()
 async def configure(ctx):
